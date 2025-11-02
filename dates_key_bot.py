@@ -6,37 +6,52 @@ from discord.ext import commands, tasks
 from io import StringIO
 from datetime import datetime
 
-GOOGLE_SHEET_URL = os.getenv("GOOGLE_SHEET_URL")  # URL de ton Google Sheet
-CHANNEL_ID = 1434557314547060766  # Remplace par ton ID de salon
+# Variables d'environnement
+GOOGLE_SHEET_URL = os.getenv("GOOGLE_SHEET_URL")
+DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+CHANNEL_ID = int(os.getenv("CHANNEL_ID"))  # ID du channel Discord
 
+# Intents Discord
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-def get_anniversaries():
+def get_messages_today():
+    """Récupère les messages dont la date correspond à aujourd'hui."""
     response = requests.get(GOOGLE_SHEET_URL)
     data = csv.DictReader(StringIO(response.text))
-    events_today = []
+    messages_today = []
     today = datetime.now().strftime("%d/%m")
+
     for row in data:
-        if row["date"] == today:
-            events_today.append(f"{row['Type']}: {row['Name']}")
-    return events_today
+        # Normaliser les clés (minuscules et sans espaces)
+        row = {k.strip().lower(): v for k, v in row.items()}
+        if "date" in row and row["date"] == today:
+            message = row.get("message", "")
+            if message:
+                messages_today.append(message)
+    return messages_today
 
 @tasks.loop(hours=24)
 async def daily_check():
+    """Tâche quotidienne pour envoyer les messages."""
     channel = bot.get_channel(CHANNEL_ID)
-    if channel is None:
-        print(f"Salon {CHANNEL_ID} introuvable")
+    if not channel:
+        print(f"Channel avec l'ID {CHANNEL_ID} introuvable.")
         return
-    events = get_anniversaries()
-    if events:
-        await channel.send(f"🗓️ **Aujourd'hui :**\n" + "\n".join(events))
+
+    messages = get_messages_today()
+    if messages:
+        await channel.send("\n".join(messages))
+
+@daily_check.before_loop
+async def before_daily_check():
+    await bot.wait_until_ready()
 
 @bot.event
 async def on_ready():
     print(f"{bot.user} est prêt !")
-    if not daily_check.is_running():  # Vérifie si la boucle est déjà en cours
-        daily_check.start()  # Démarre la boucle après que le bot soit prêt
+    if not daily_check.is_running():
+        daily_check.start()
 
-bot.run(os.getenv("DISCORD_TOKEN"))  # Token sécurisé via variable d'environnement
+bot.run(DISCORD_TOKEN)
