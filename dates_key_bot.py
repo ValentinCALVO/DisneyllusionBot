@@ -19,7 +19,7 @@ def get_anniversaries():
     events_today = []
     today = datetime.now().strftime("%d/%m")
     for row in data:
-        if row["Date"] == today:
+        if row["date"] == today:
             events_today.append(f"{row['Type']}: {row['Name']}")
     return events_today
 
