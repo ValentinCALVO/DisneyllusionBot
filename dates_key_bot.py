@@ -54,4 +54,18 @@ async def on_ready():
     if not daily_check.is_running():
         daily_check.start()
 
+@bot.event
+async def on_ready():
+    print(f"{bot.user} est prêt !")
+    channel = bot.get_channel(CHANNEL_ID)
+    if channel:
+        messages = get_messages_today()
+        if messages:
+            await channel.send("\n".join(messages))
+        else:
+            print("Aucun message trouvé pour aujourd'hui")
+    if not daily_check.is_running():
+        daily_check.start()
+
+
 bot.run(DISCORD_TOKEN)
