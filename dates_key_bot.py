@@ -6,7 +6,8 @@ from discord.ext import commands, tasks
 from io import StringIO
 from datetime import datetime
 
-GOOGLE_SHEET_URL = os.getenv("GOOGLE_SHEET_URL")  # Utilise la variable d'environnement
+GOOGLE_SHEET_URL = os.getenv("GOOGLE_SHEET_URL")  # URL de ton Google Sheet
+CHANNEL_ID = 1434557314547060766  # Remplace par ton ID de salon
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -24,20 +25,18 @@ def get_anniversaries():
 
 @tasks.loop(hours=24)
 async def daily_check():
-    channel_id = TON_ID_DU_CHANNEL
-    channel = bot.get_channel(channel_id)
+    channel = bot.get_channel(CHANNEL_ID)
+    if channel is None:
+        print(f"Salon {CHANNEL_ID} introuvable")
+        return
     events = get_anniversaries()
     if events:
         await channel.send(f"🗓️ **Aujourd'hui :**\n" + "\n".join(events))
 
-@daily_check.before_loop
-async def before_daily_check():
-    await bot.wait_until_ready()
-
-daily_check.start()
-
 @bot.event
 async def on_ready():
     print(f"{bot.user} est prêt !")
+    if not daily_check.is_running():  # Vérifie si la boucle est déjà en cours
+        daily_check.start()  # Démarre la boucle après que le bot soit prêt
 
-bot.run(os.getenv("DISCORD_TOKEN"))  # Token du bot sécurisé
+bot.run(os.getenv("DISCORD_TOKEN"))  # Token sécurisé via variable d'environnement
