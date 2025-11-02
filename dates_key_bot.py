@@ -1,9 +1,10 @@
 import os
 import requests
 import csv
+import discord
+from discord.ext import commands, tasks
 from io import StringIO
 from datetime import datetime
-from discord.ext import tasks, commands
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 GOOGLE_SHEET_URL = os.getenv("GOOGLE_SHEET_URL")
