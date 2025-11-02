@@ -6,40 +6,38 @@ from discord.ext import commands, tasks
 from io import StringIO
 from datetime import datetime
 
-TOKEN = os.getenv("DISCORD_TOKEN")
-GOOGLE_SHEET_URL = os.getenv("GOOGLE_SHEET_URL")
-CHANNEL_ID = 1434557314547060766  # ID du salon
+GOOGLE_SHEET_URL = os.getenv("GOOGLE_SHEET_URL")  # Utilise la variable d'environnement
 
-bot = commands.Bot(command_prefix="!")
+intents = discord.Intents.default()
+intents.message_content = True
+bot = commands.Bot(command_prefix="!", intents=intents)
 
-def get_disney_dates():
-    """Récupère les anniversaires Disney depuis Google Sheet"""
+def get_anniversaries():
     response = requests.get(GOOGLE_SHEET_URL)
-    response.raise_for_status()
-    data = {}
-    f = StringIO(response.text)
-    reader = csv.DictReader(f)
-    for row in reader:
-        date = row['date']
-        message = row['message']
-        if date not in data:
-            data[date] = []
-        data[date].append(message)
-    return data
+    data = csv.DictReader(StringIO(response.text))
+    events_today = []
+    today = datetime.now().strftime("%d/%m")
+    for row in data:
+        if row["Date"] == today:
+            events_today.append(f"{row['Type']}: {row['Name']}")
+    return events_today
 
 @tasks.loop(hours=24)
 async def daily_check():
-    """Envoie les anniversaires tous les jours"""
-    channel = bot.get_channel(CHANNEL_ID)
-    dates_disney = get_disney_dates()
-    today = datetime.now().strftime("%d-%m")
-    if today in dates_disney:
-        events = "\n".join(dates_disney[today])
-        await channel.send(f"🗓️ **Aujourd'hui :**\n{events}")
+    channel_id = TON_ID_DU_CHANNEL
+    channel = bot.get_channel(channel_id)
+    events = get_anniversaries()
+    if events:
+        await channel.send(f"🗓️ **Aujourd'hui :**\n" + "\n".join(events))
+
+@daily_check.before_loop
+async def before_daily_check():
+    await bot.wait_until_ready()
+
+daily_check.start()
 
 @bot.event
 async def on_ready():
     print(f"{bot.user} est prêt !")
-    daily_check.start()
 
-bot.run(TOKEN)
+bot.run(os.getenv("DISCORD_TOKEN"))  # Token du bot sécurisé
